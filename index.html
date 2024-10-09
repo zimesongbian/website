@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot Rasa - Style WhatsApp</title>
+    <style>
+        /* Style de la page similaire à WhatsApp */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #chat-container {
+            width: 90%;
+            max-width: 400px;
+            height: 600px;
+            background-color: #ffffff;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #messages {
+            flex-grow: 1;
+            padding: 10px;
+            overflow-y: auto;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 10px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .user-message {
+            background-color: #dcf8c6;
+            align-self: flex-end;
+        }
+
+        .bot-message {
+            background-color: #e0e0e0;
+            align-self: flex-start;
+        }
+
+        #input-container {
+            display: flex;
+            border-top: 1px solid #ddd;
+        }
+
+        #user-input {
+            flex-grow: 1;
+            padding: 10px;
+            border: none;
+            outline: none;
+        }
+
+        #send-button {
+            padding: 10px;
+            background-color: #007bff;
+            color: #ffffff;
+            border: none;
+            cursor: pointer;
+        }
+
+        #send-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+<div id="chat-container">
+    <!-- Zone des messages -->
+    <div id="messages"></div>
+
+    <!-- Zone de saisie utilisateur -->
+    <div id="input-container">
+        <input type="text" id="user-input" placeholder="Écrivez un message..." />
+        <button id="send-button">Envoyer</button>
+    </div>
+</div>
+
+<script>
+    // URL de l'API Rasa exposée via ngrok (URL POST)
+    const RASA_URL = 'https://aa48-137-255-41-205.ngrok-free.app/webhooks/rest/webhook';
+
+    const messagesContainer = document.getElementById('messages');
+    const userInput = document.getElementById('user-input');
+    const sendButton = document.getElementById('send-button');
+
+    // Fonction pour ajouter un message à l'interface
+    function addMessageToChat(sender, message) {
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('message', sender === 'user' ? 'user-message' : 'bot-message');
+        messageElement.textContent = message;
+        messagesContainer.appendChild(messageElement);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight; // Scroll jusqu'au dernier message
+    }
+
+    // Fonction pour envoyer le message à Rasa via une requête POST
+    async function sendMessage() {
+        const message = userInput.value.trim();
+        if (message === '') return;
+
+        // Ajouter le message utilisateur dans l'interface
+        addMessageToChat('user', message);
+
+        // Réinitialiser le champ de saisie utilisateur
+        userInput.value = '';
+
+        try {
+            // Envoyer la requête POST à l'API Rasa
+            const response = await fetch(RASA_URL, {
+                method: 'POST',  // Utilisation explicite de la méthode POST
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ sender: 'user', message }),  // Envoyer le message utilisateur dans le corps de la requête
+            });
+
+            // Vérifier si la requête a réussi
+            if (!response.ok) {
+                addMessageToChat('bot', 'Erreur de connexion au serveur.');
+                console.error('Erreur de connexion:', response.statusText);
+                return;
+            }
+
+            // Traiter la réponse de l'API Rasa
+            const data = await response.json();
+            console.log('Réponse de Rasa:', data);
+
+            // Vérifier s'il y a une réponse du bot
+            if (data.length === 0) {
+                addMessageToChat('bot', 'Le bot n\'a pas de réponse.');
+            } else {
+                // Ajouter la réponse du bot dans l'interface
+                data.forEach((botResponse) => {
+                    addMessageToChat('bot', botResponse.text);
+                });
+            }
+        } catch (error) {
+            console.error('Erreur lors de l\'envoi du message:', error);
+            addMessageToChat('bot', 'Erreur lors de la communication avec le serveur.');
+        }
+    }
+
+    // Gestion du clic sur le bouton "Envoyer"
+    sendButton.addEventListener('click', sendMessage);
+
+    // Gestion de l'appui sur la touche "Entrée"
+    userInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();  // Si Enter est pressé, envoyer le message
+    });
+
+    // Assurer qu'aucune requête GET n'est envoyée au chargement de la page
+    window.onload = function() {
+        console.log("Page chargée. Aucune requête GET ne sera envoyée.");
+    };
+</script>
+</body>
+</html>
